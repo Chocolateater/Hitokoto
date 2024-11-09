@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <title>一言管理系统</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Microsoft YaHei', sans-serif;
+            display: flex;
+            height: 100vh;
+        }
+
+        .search-box {
+            padding: 5px 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-right: 10px;
+            width: 200px;
+        }
+
+        .view-toggle {
+            margin-left: auto;
+        }
+
+        /* 详情视图样式 */
+        .sentence-list-view {
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        .sentence-list-item {
+            padding: 8px 15px;
+            border-bottom: 1px solid #ddd;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .sentence-list-item:last-child {
+            border-bottom: none;
+        }
+
+        .sentence-list-item.selected {
+            background: #e3f2fd;
+        }
+
+        .sentence-list-item:hover {
+            background: #f5f5f5;
+        }
+
+        .sentence-list-item .content {
+            flex: 2;
+        }
+
+        .sentence-list-item .author {
+            flex: 1;
+        }
+
+        .sentence-list-item .source {
+            flex: 1;
+        }
+
+        .sentence-list-item .category {
+            flex: 1;
+        }
+
+        .sentence-list-item .tags {
+            flex: 2;
+        }
+
+        /* 左侧导航栏样式 */
+        .sidebar {
+            width: 250px;
+            background: #f0f0f0;
+            padding: 20px;
+            border-right: 1px solid #ddd;
+            overflow-y: auto;
+        }
+
+        .sidebar h3 {
+            margin-top: 0;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .tree-item {
+            padding: 5px 0;
+            cursor: pointer;
+        }
+
+        .tree-item:hover {
+            background: #e0e0e0;
+        }
+
+        .tree-item.active {
+            background: #d0d0d0;
+        }
+
+        /* 主内容区样式 */
+        .main-content {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .toolbar {
+            margin-bottom: 20px;
+            padding: 10px;
+            background: #f5f5f5;
+            border-radius: 4px;
+        }
+
+        .sentence-card {
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 4px;
+            position: relative;
+        }
+
+        .sentence-card.selected {
+            background: #e3f2fd;
+        }
+
+        .sentence-card:hover {
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        .tag {
+            background: #e0e0e0;
+            padding: 2px 6px;
+            border-radius: 3px;
+            margin-right: 5px;
+            display: inline-block;
+            margin-bottom: 5px;
+        }
+
+        /* 模态框样式 */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-content {
+            background: white;
+            width: 500px;
+            margin: 100px auto;
+            padding: 20px;
+            border-radius: 8px;
+        }
+
+        .modal input,
+        .modal textarea {
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+
+        .btn-primary {
+            background: #1976d2;
+            color: white;
+        }
+
+        .btn-secondary {
+            background: #757575;
+            color: white;
+        }
+
+        .checkbox {
+            margin-right: 10px;
+        }
+
+        .status-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 5px 20px;
+            background: #f5f5f5;
+            border-top: 1px solid #ddd;
+        }
+
+        .filter-search {
+            margin: 10px 0;
+            position: relative;
+        }
+
+        .filter-search input {
+            width: 100%;
+            padding: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+
+        .filter-search .clear-btn {
+            position: absolute;
+            right: 5px;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: pointer;
+            color: #999;
+            border: none;
+            background: none;
+            display: none;
+        }
+
+        .filter-search input:not(:placeholder-shown)+.clear-btn {
+            display: block;
+        }
+
+        .no-results {
+            color: #666;
+            font-style: italic;
+            padding: 5px;
+            font-size: 12px;
+        }
+
+        .tree-section {
+            margin-bottom: 20px;
+        }
+
+        .tree-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .tree-header h4 {
+            margin: 0;
+        }
+
+        .count-badge {
+            background: #e0e0e0;
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 12px;
+            color: #666;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- 左侧导航栏 -->
+    <div class="sidebar">
+        <h3>筛选器</h3>
+
+        <div class="tree-section">
+            <div class="tree-header">
+                <h4>分类</h4>
+                <span class="count-badge" id="categoryCount">0</span>
+            </div>
+            <div class="filter-search">
+                <input type="text" id="categorySearch" placeholder="搜索分类..." oninput="handleCategorySearch(this.value)">
+                <button class="clear-btn" onclick="clearCategorySearch()">×</button>
+            </div>
+            <div id="categoryList"></div>
+        </div>
+
+        <div class="tree-section">
+            <div class="tree-header">
+                <h4>标签</h4>
+                <span class="count-badge" id="tagCount">0</span>
+            </div>
+            <div class="filter-search">
+                <input type="text" id="tagSearch" placeholder="搜索标签..." oninput="handleTagSearch(this.value)">
+                <button class="clear-btn" onclick="clearTagSearch()">×</button>
+            </div>
+            <div id="tagList"></div>
+        </div>
+    </div>
+
+    <!-- 主内容区 -->
+    <div class="main-content">
+        <div class="toolbar">
+            <input type="text" class="search-box" id="searchInput" placeholder="搜索句子..." oninput="handleSearch()">
+            <button class="btn btn-primary" onclick="showAddModal()">新建句子</button>
+            <button class="btn btn-secondary" onclick="deleteSelected()">删除选中</button>
+            <span id="selectionCount"></span>
+            <div class="view-toggle">
+                <button class="btn" onclick="toggleView('card')">卡片视图</button>
+                <button class="btn" onclick="toggleView('list')">详情视图</button>
+            </div>
+        </div>
+        <div id="sentenceList"></div>
+    </div>
+
+    <!-- 添加/编辑句子的模态框 -->
+    <div id="addModal" class="modal">
+        <div class="modal-content">
+            <h3>添加新句子</h3>
+            <textarea id="content" placeholder="句子内容" rows="3"></textarea>
+            <input type="text" id="author" placeholder="作者">
+            <input type="text" id="source" placeholder="来源">
+            <input type="text" id="category" placeholder="分类">
+            <input type="text" id="tags" placeholder="标签（用逗号分隔）">
+            <div style="margin-top: 20px;">
+                <button class="btn btn-primary" onclick="addSentence()">保存</button>
+                <button class="btn btn-secondary" onclick="hideAddModal()">取消</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 状态栏 -->
+    <div class="status-bar">
+        <span id="statusText">就绪</span>
+    </div>
+
+    <script>
+        let sentences = [];
+        let selectedSentences = new Set();
+        let activeFilters = {
+            categories: new Set(),
+            tags: new Set()
+        };
+
+        // 加载数据
+        async function loadSentences() {
+            updateStatus('正在加载数据...');
+            try {
+                const response = await fetch('/data.json');
+                const data = await response.json();
+                sentences = data.sentences;
+                updateFilters();
+                displaySentences();
+                updateStatus('数据加载完成');
+            } catch (error) {
+                console.error('加载数据失败:', error);
+                updateStatus('加载数据失败');
+            }
+        }
+
+        // 更新筛选器
+        function updateFilters() {
+            // 获取所有唯一的分类和标签
+            const categories = new Set(sentences.map(s => s.category));
+            const tags = new Set(sentences.flatMap(s => s.tags));
+
+            // 更新分类列表
+            const categoryList = document.getElementById('categoryList');
+            categoryList.innerHTML = Array.from(categories).map(category => `
+                <div class="tree-item ${activeFilters.categories.has(category) ? 'active' : ''}"
+                     onclick="toggleCategory('${category}')">
+                    ${category}
+                </div>
+            `).join('');
+
+            // 更新标签列表
+            const tagList = document.getElementById('tagList');
+            tagList.innerHTML = Array.from(tags).map(tag => `
+                <div class="tree-item ${activeFilters.tags.has(tag) ? 'active' : ''}"
+                     onclick="toggleTag('${tag}')">
+                    ${tag}
+                </div>
+            `).join('');
+        }
+
+        // 显示句子
+        function displaySentences() {
+            const container = document.getElementById('sentenceList');
+            container.innerHTML = '';
+
+            // 应用筛选器
+            let filteredSentences = sentences;
+            if (activeFilters.categories.size > 0) {
+                filteredSentences = filteredSentences.filter(s =>
+                    activeFilters.categories.has(s.category));
+            }
+            if (activeFilters.tags.size > 0) {
+                filteredSentences = filteredSentences.filter(s =>
+                    s.tags.some(tag => activeFilters.tags.has(tag)));
+            }
+
+            filteredSentences.forEach((sentence, index) => {
+                const card = document.createElement('div');
+                card.className = `sentence-card ${selectedSentences.has(index) ? 'selected' : ''}`;
+                card.innerHTML = `
+                    <input type="checkbox" class="checkbox" 
+                           ${selectedSentences.has(index) ? 'checked' : ''}
+                           onclick="toggleSelection(${index}, event)">
+                    <p><strong>内容：</strong>${sentence.content}</p>
+                    <p><strong>作者：</strong>${sentence.author}</p>
+                    <p><strong>来源：</strong>${sentence.source}</p>
+                    <p><strong>分类：</strong>${sentence.category}</p>
+                    <p><strong>标签：</strong>${sentence.tags.map(tag =>
+                    `<span class="tag">${tag}</span>`).join('')}</p>
+                `;
+                container.appendChild(card);
+            });
+
+            updateSelectionCount();
+        }
+
+        // 切换分类筛选
+        function toggleCategory(category) {
+            if (activeFilters.categories.has(category)) {
+                activeFilters.categories.delete(category);
+            } else {
+                activeFilters.categories.add(category);
+            }
+            updateFilters();
+            displaySentences();
+        }
+
+        // 切换标签筛选
+        function toggleTag(tag) {
+            if (activeFilters.tags.has(tag)) {
+                activeFilters.tags.delete(tag);
+            } else {
+                activeFilters.tags.add(tag);
+            }
+            updateFilters();
+            displaySentences();
+        }
+
+        // 切换选择
+        function toggleSelection(index, event) {
+            event.stopPropagation();
+            if (selectedSentences.has(index)) {
+                selectedSentences.delete(index);
+            } else {
+                selectedSentences.add(index);
+            }
+            displaySentences();
+        }
+
+        // 更新选择计数
+        function updateSelectionCount() {
+            const count = selectedSentences.size;
+            document.getElementById('selectionCount').textContent =
+                count > 0 ? `已选择 ${count} 项` : '';
+        }
+
+        // 显示添加模态框
+        function showAddModal() {
+            document.getElementById('addModal').style.display = 'block';
+        }
+
+        // 隐藏添加模态框
+        function hideAddModal() {
+            document.getElementById('addModal').style.display = 'none';
+            // 清空表单
+            document.getElementById('content').value = '';
+            document.getElementById('author').value = '';
+            document.getElementById('source').value = '';
+            document.getElementById('category').value = '';
+            document.getElementById('tags').value = '';
+        }
+
+        // 添加新句子
+        async function addSentence() {
+            const content = document.getElementById('content').value;
+            if (!content) {
+                alert('请输入句子内容！');
+                return;
+            }
+
+            const newSentence = {
+                content: content,
+                author: document.getElementById('author').value || '佚名',
+                source: document.getElementById('source').value || '网络',
+                category: document.getElementById('category').value || '未分类',
+                tags: document.getElementById('tags').value.split(',')
+                    .map(tag => tag.trim()).filter(tag => tag)
+            };
+
+            sentences.push(newSentence);
+            await saveSentences();
+            hideAddModal();
+            updateFilters();
+            displaySentences();
+        }
+
+        // 删除选中的句子
+        async function deleteSelected() {
+            if (selectedSentences.size === 0) return;
+            if (!confirm(`确定要删除选中的 ${selectedSentences.size} 条句子吗？`)) return;
+
+            const indicesToDelete = Array.from(selectedSentences).sort((a, b) => b - a);
+            for (const index of indicesToDelete) {
+                sentences.splice(index, 1);
+            }
+
+            selectedSentences.clear();
+            await saveSentences();
+            updateFilters();
+            displaySentences();
+        }
+
+        // 保存数据
+        async function saveSentences() {
+            updateStatus('正在保存...');
+            try {
+                const response = await fetch('/data.json', {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer TOKEN'
+                    },
+                    body: JSON.stringify({ sentences: sentences })
+                });
+
+                if (!response.ok) {
+                    throw new Error('保存失败');
+                }
+                updateStatus('保存成功');
+            } catch (error) {
+                console.error('保存数据失败:', error);
+                updateStatus('保存失败');
+                alert('保存失败，请检查网络连接或权限！');
+            }
+        }
+
+        // 更新状态栏
+        function updateStatus(text) {
+            document.getElementById('statusText').textContent = text;
+        }
+
+        // 页面加载时初始化
+        loadSentences();
+        let currentView = 'card'; // 当前视图模式
+        let searchTerm = ''; // 搜索关键词
+
+        // 切换视图模式
+        function toggleView(view) {
+            currentView = view;
+            displaySentences();
+        }
+
+        // 处理搜索
+        function handleSearch() {
+            searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            displaySentences();
+        }
+
+        // 修改 displaySentences 函数
+        function displaySentences() {
+            const container = document.getElementById('sentenceList');
+            container.innerHTML = '';
+
+            // 应用筛选器和搜索
+            let filteredSentences = sentences;
+
+            // 应用分类和标签筛选
+            if (activeFilters.categories.size > 0) {
+                filteredSentences = filteredSentences.filter(s =>
+                    activeFilters.categories.has(s.category));
+            }
+            if (activeFilters.tags.size > 0) {
+                filteredSentences = filteredSentences.filter(s =>
+                    s.tags.some(tag => activeFilters.tags.has(tag)));
+            }
+
+            // 应用搜索
+            if (searchTerm) {
+                filteredSentences = filteredSentences.filter(s =>
+                    s.content.toLowerCase().includes(searchTerm) ||
+                    s.author.toLowerCase().includes(searchTerm) ||
+                    s.source.toLowerCase().includes(searchTerm) ||
+                    s.category.toLowerCase().includes(searchTerm) ||
+                    s.tags.some(tag => tag.toLowerCase().includes(searchTerm))
+                );
+            }
+
+            if (currentView === 'card') {
+                // 卡片视图
+                container.className = '';
+                filteredSentences.forEach((sentence, index) => {
+                    const card = document.createElement('div');
+                    card.className = `sentence-card ${selectedSentences.has(index) ? 'selected' : ''}`;
+                    card.innerHTML = `
+                <input type="checkbox" class="checkbox" 
+                       ${selectedSentences.has(index) ? 'checked' : ''}
+                       onclick="toggleSelection(${index}, event)">
+                <p><strong>内容：</strong>${sentence.content}</p>
+                <p><strong>作者：</strong>${sentence.author}</p>
+                <p><strong>来源：</strong>${sentence.source}</p>
+                <p><strong>分类：</strong>${sentence.category}</p>
+                <p><strong>标签：</strong>${sentence.tags.map(tag =>
+                        `<span class="tag">${tag}</span>`).join('')}</p>
+            `;
+                    container.appendChild(card);
+                });
+            } else {
+                // 详情视图
+                container.className = 'sentence-list-view';
+                filteredSentences.forEach((sentence, index) => {
+                    const item = document.createElement('div');
+                    item.className = `sentence-list-item ${selectedSentences.has(index) ? 'selected' : ''}`;
+                    item.innerHTML = `
+                <input type="checkbox" class="checkbox" 
+                       ${selectedSentences.has(index) ? 'checked' : ''}
+                       onclick="toggleSelection(${index}, event)">
+                <div class="content">${sentence.content}</div>
+                <div class="author">${sentence.author}</div>
+                <div class="source">${sentence.source}</div>
+                <div class="category">${sentence.category}</div>
+                <div class="tags">${sentence.tags.map(tag =>
+                        `<span class="tag">${tag}</span>`).join('')}</div>
+            `;
+                    container.appendChild(item);
+                });
+            }
+
+            updateSelectionCount();
+        }
+        let categorySearchTerm = '';
+        let tagSearchTerm = '';
+
+        // 处理分类搜索
+        function handleCategorySearch(value) {
+            categorySearchTerm = value.toLowerCase();
+            updateFilters();
+        }
+
+        // 处理标签搜索
+        function handleTagSearch(value) {
+            tagSearchTerm = value.toLowerCase();
+            updateFilters();
+        }
+
+        // 清除分类搜索
+        function clearCategorySearch() {
+            document.getElementById('categorySearch').value = '';
+            categorySearchTerm = '';
+            updateFilters();
+        }
+
+        // 清除标签搜索
+        function clearTagSearch() {
+            document.getElementById('tagSearch').value = '';
+            tagSearchTerm = '';
+            updateFilters();
+        }
+
+        // 更新筛选器（修改原有的 updateFilters 函数）
+        function updateFilters() {
+            // 获取所有唯一的分类和标签
+            const categories = new Set(sentences.map(s => s.category));
+            const tags = new Set(sentences.flatMap(s => s.tags));
+
+            // 更新分类列表
+            const categoryList = document.getElementById('categoryList');
+            const filteredCategories = Array.from(categories)
+                .filter(category => category.toLowerCase().includes(categorySearchTerm));
+
+            if (filteredCategories.length > 0) {
+                categoryList.innerHTML = filteredCategories.map(category => `
+                <div class="tree-item ${activeFilters.categories.has(category) ? 'active' : ''}"
+                     onclick="toggleCategory('${category}')">
+                    ${category}
+                    <span class="count-badge">
+                        ${sentences.filter(s => s.category === category).length}
+                    </span>
+                </div>
+            `).join('');
+            } else {
+                categoryList.innerHTML = '<div class="no-results">没有找到匹配的分类</div>';
+            }
+
+            // 更新标签列表
+            const tagList = document.getElementById('tagList');
+            const filteredTags = Array.from(tags)
+                .filter(tag => tag.toLowerCase().includes(tagSearchTerm));
+
+            if (filteredTags.length > 0) {
+                tagList.innerHTML = filteredTags.map(tag => `
+                <div class="tree-item ${activeFilters.tags.has(tag) ? 'active' : ''}"
+                     onclick="toggleTag('${tag}')">
+                    ${tag}
+                    <span class="count-badge">
+                        ${sentences.filter(s => s.tags.includes(tag)).length}
+                    </span>
+                </div>
+            `).join('');
+            } else {
+                tagList.innerHTML = '<div class="no-results">没有找到匹配的标签</div>';
+            }
+
+            // 更新计数
+            document.getElementById('categoryCount').textContent = categories.size;
+            document.getElementById('tagCount').textContent = tags.size;
+        }
+    </script>
+</body>
+
+</html>
