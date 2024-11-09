@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>一言 API</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .api-doc {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        #hitokoto {
+            font-size: 1.2em;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>一言 API</h1>
+    <div class="api-doc">
+        <h2>API 使用说明</h2>
+        <p>请求地址: <code>https://yourdomain.github.io/api</code></p>
+        <p>请求方式: GET</p>
+        <p>返回格式: JSON</p>
+        <p>示例响应:</p>
+        <pre><code id="example"></code></pre>
+    </div>
+
+    <div class="hitokoto-demo">
+        <h2>今日一言</h2>
+        <p id="hitokoto"></p>
+    </div>
+
+    <script>
+        async function fetchHitokoto() {
+            try {
+                const response = await fetch('./data.json');
+                const data = await response.json();
+                const sentences = data.sentences;
+                const randomIndex = Math.floor(Math.random() * sentences.length);
+                const sentence = sentences[randomIndex];
+                
+                // 显示一言
+                document.getElementById('hitokoto').textContent = sentence.content;
+                
+                // 显示API示例
+                document.getElementById('example').textContent = 
+                    JSON.stringify(sentence, null, 2);
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('hitokoto').textContent = '加载失败，请稍后再试';
+            }
+        }
+
+        // 页面加载时显示一言
+        fetchHitokoto();
+    </script>
+</body>
+</html>

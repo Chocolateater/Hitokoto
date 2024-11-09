@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<script>
+    // 获取查询参数
+    const urlParams = new URLSearchParams(window.location.search);
+    const callback = urlParams.get('callback'); // 支持 JSONP
+    const categoryParam = urlParams.get('class'); // 获取分类参数
+    
+    async function sendResponse() {
+        try {
+            // 获取数据
+            const response = await fetch('./data.json');
+            const data = await response.json();
+            let sentences = data.sentences;
+            
+            // 如果指定了分类参数且不为空
+            if (categoryParam) {
+                // 将分类参数转换为数组（支持中英文逗号）
+                const categories = categoryParam.split(/[,，]/).map(c => c.trim()).filter(c => c);
+                
+                if (categories.length > 0) {
+                    // 过滤出指定分类的句子
+                    sentences = sentences.filter(s => categories.includes(s.category));
+                }
+            }
+            
+            // 如果没有找到任何句子，使用全部句子
+            if (sentences.length === 0) {
+                sentences = data.sentences;
+            }
+            
+            // 随机选择一条句子
+            const randomIndex = Math.floor(Math.random() * sentences.length);
+            const sentence = sentences[randomIndex];
+            
+            // 构建返回结果
+            const result = {
+                ...sentence,
+                timestamp: new Date().toISOString(),
+                total: sentences.length,
+                matching_categories: categoryParam ? categoryParam.split(/[,，]/).map(c => c.trim()).filter(c => c) : ['all'],
+                available_categories: [...new Set(data.sentences.map(s => s.category))] // 添加所有可用分类
+            };
+            
+            // 如果有 callback 参数，返回 JSONP 格式
+            if (callback) {
+                document.write(`${callback}(${JSON.stringify(result)})`);
+            } else {
+                // 否则返回普通 JSON
+                document.write(JSON.stringify(result));
+            }
+        } catch (error) {
+            const errorResponse = {
+                error: '获取数据失败',
+                message: error.message,
+                timestamp: new Date().toISOString()
+            };
+            
+            if (callback) {
+                document.write(`${callback}(${JSON.stringify(errorResponse)})`);
+            } else {
+                document.write(JSON.stringify(errorResponse));
+            }
+        }
+    }
+    sendResponse();
+</script>
