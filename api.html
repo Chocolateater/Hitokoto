@@ -2,8 +2,14 @@
 <script>
     // 获取查询参数
     const urlParams = new URLSearchParams(window.location.search);
-    const callback = urlParams.get('callback'); // 支持 JSONP
-    const categoryParam = urlParams.get('class'); // 获取分类参数
+    const callback = urlParams.get('callback');
+    const categoryParam = urlParams.get('class');
+    const tagParam = urlParams.get('tag');
+    
+    // 将逗号分隔的字符串转换为数组（支持中英文逗号）
+    function parseParams(param) {
+        return param ? param.split(/[,，]/).map(p => p.trim()).filter(p => p) : [];
+    }
     
     async function sendResponse() {
         try {
@@ -11,41 +17,83 @@
             const response = await fetch('./data.json');
             const data = await response.json();
             let sentences = data.sentences;
+            let filterInfo = { // 用于记录过滤信息
+                originalCount: sentences.length,
+                afterCategoryFilter: 0,
+                afterTagFilter: 0
+            };
             
-            // 如果指定了分类参数且不为空
-            if (categoryParam) {
-                // 将分类参数转换为数组（支持中英文逗号）
-                const categories = categoryParam.split(/[,，]/).map(c => c.trim()).filter(c => c);
-                
-                if (categories.length > 0) {
-                    // 过滤出指定分类的句子
-                    sentences = sentences.filter(s => categories.includes(s.category));
-                }
+            // 解析分类和标签参数
+            const categories = parseParams(categoryParam);
+            const tags = parseParams(tagParam);
+            
+            // 过滤句子
+            if (categories.length > 0) {
+                sentences = sentences.filter(s => categories.includes(s.category));
+                filterInfo.afterCategoryFilter = sentences.length;
             }
             
-            // 如果没有找到任何句子，使用全部句子
+            if (tags.length > 0) {
+                sentences = sentences.filter(s => 
+                    // 确保句子有tags属性，并且包含任意一个指定的标签
+                    s.tags && tags.some(requestedTag => s.tags.includes(requestedTag))
+                );
+                filterInfo.afterTagFilter = sentences.length;
+            }
+            
+            // 如果没有找到任何句子，返回提示信息而不是降级到全部句子
             if (sentences.length === 0) {
-                sentences = data.sentences;
+                const errorResponse = {
+                    error: '未找到匹配的句子',
+                    message: '没有找到同时满足指定分类和标签的句子',
+                    filterInfo,
+                    query: {
+                        categories: categories.length > 0 ? categories : ['all'],
+                        tags: tags.length > 0 ? tags : ['all']
+                    },
+                    available: {
+                        categories: [...new Set(data.sentences.map(s => s.category))],
+                        tags: [...new Set(data.sentences.flatMap(s => s.tags || []))]
+                    },
+                    timestamp: new Date().toISOString()
+                };
+                
+                if (callback) {
+                    document.write(`${callback}(${JSON.stringify(errorResponse)})`);
+                } else {
+                    document.write(JSON.stringify(errorResponse));
+                }
+                return;
             }
             
             // 随机选择一条句子
             const randomIndex = Math.floor(Math.random() * sentences.length);
             const sentence = sentences[randomIndex];
             
+            // 获取所有可用的分类和标签
+            const availableCategories = [...new Set(data.sentences.map(s => s.category))];
+            const availableTags = [...new Set(data.sentences.flatMap(s => s.tags || []))];
+            
             // 构建返回结果
             const result = {
                 ...sentence,
                 timestamp: new Date().toISOString(),
                 total: sentences.length,
-                matching_categories: categoryParam ? categoryParam.split(/[,，]/).map(c => c.trim()).filter(c => c) : ['all'],
-                available_categories: [...new Set(data.sentences.map(s => s.category))] // 添加所有可用分类
+                filterInfo,
+                query: {
+                    categories: categories.length > 0 ? categories : ['all'],
+                    tags: tags.length > 0 ? tags : ['all']
+                },
+                available: {
+                    categories: availableCategories,
+                    tags: availableTags
+                }
             };
             
-            // 如果有 callback 参数，返回 JSONP 格式
+            // 返回结果
             if (callback) {
                 document.write(`${callback}(${JSON.stringify(result)})`);
             } else {
-                // 否则返回普通 JSON
                 document.write(JSON.stringify(result));
             }
         } catch (error) {

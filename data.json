@@ -4,19 +4,22 @@
             "content": "生命不止，奋斗不息",
             "author": "佚名",
             "source": "网络",
-            "category": "励志"
+            "category": "励志",
+            "tags": ["奋斗", "人生"]
         },
         {
             "content": "花开堪折直须折，莫待无花空折枝",
             "author": "龚自珍",
             "source": "己亥杂诗",
-            "category": "诗词"
+            "category": "诗词",
+            "tags": ["爱情", "及时"]
         },
         {
             "content": "学而不思则罔，思而不学则殆",
             "author": "孔子",
             "source": "论语",
-            "category": "哲理"
+            "category": "哲理",
+            "tags": ["学习", "思考"]
         }
     ]
 }
